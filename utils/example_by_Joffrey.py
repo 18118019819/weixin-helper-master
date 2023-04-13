@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import json
+import socket
 
 import websocket
 import time
@@ -90,7 +91,13 @@ def get_personal_info():
         'wxid': 'null',
     }
     respJson = send(uri, data)
-    print(respJson)
+    content_str = respJson['content']
+    content_dict = json.loads(content_str)
+    for key, value in content_dict.items():
+        if key == "wx_name":
+            return value
+        else:
+            continue
 
 
 ################################### websocket ################################################
@@ -258,6 +265,13 @@ def handle_recv_msg(msgJson):
         nickname = 'null'
         senderid = msgJson['wxid']  # 个人id
     nickname = get_member_nick(roomid, senderid)
+    personal_name = get_personal_info()
+    print(f'personal_name:{personal_name}')
+
+    # 获取当前服务器ip
+    hostname = socket.gethostname()
+    ip = socket.gethostbyname(hostname)
+    print(f'ip:{ip}')
 
     if roomid:
         if keyword == 'ding':
@@ -292,7 +306,7 @@ def handle_recv_msg(msgJson):
                     if y2 == y3:
                         for x4, y4 in msgJson.items():
                             if x4 in aimlist2:
-                                seg_punc(y, x3, y, y4, nickname)
+                                seg_punc(y, x3, y, y4, nickname, ip, personal_name)
 
 
 def on_message(ws, message):

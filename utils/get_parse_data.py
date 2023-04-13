@@ -1,6 +1,5 @@
 import hashlib
 import json
-import socket
 
 from process_recruit_detail_info import extract_info
 from process_job_info import handle_search
@@ -29,11 +28,12 @@ def keyword_match(text):
               r'验后付款|周期快|马上截止报名|回收|三辊闸| 全网推广|授权抖音快手|专业年审|审车|效果图|各类证书|官网永久可查|唯一社保|二级房建|公司资金雄厚|服务项目|全国业绩补录 |车年审|全国求购|中介茶水丰厚|专业消防预算和报价|专业消防图纸设计出图盖章' \
               r'旋转吊篮|intel 酷睿i5处理器|靓机好货|全国包邮|补录|专业办证|建筑配件系列产品|投保电话|一站式采购|软过免考通道|软过免考|经销商|代理商|免费拆除|年租|感应门 地簧门|出山东建筑乙|做分期|回函|免费试用|封号|项目广告|出租！出租！|优惠多多 |瓷砖供应' \
               r'求包月|安许|利润空间|免费设计|一手价格|哈市|房三市|八大员|一险寻|学习顾问|核心竞争力|开业登记|人力资源证|半天出证|考证|点位低|高沸点|长期供应|赠送教材|换锁行业|出租|免考|下证|电子哨兵|会所|明码标价|求购|解除异常|个代开票|验资|大学自考|通过率高' \
-              r'接单|代招生|全程接种|签证|专业设置|财富热线|24小时服务|收好建筑垃圾|车找人|代办|全国接单|基金会|抢购|急收|转让|老师热线|热门专业|劳务备案|独家现货|配置表|品牌|内部福利|夜场|组合下单'
+              r'接单|代招生|全程接种|签证|专业设置|财富热线|24小时服务|收好建筑垃圾|车找人|代办|全国接单|基金会|抢购|急收|转让|老师热线|热门专业|劳务备案|独家现货|配置表|品牌|内部福利|夜场|组合下单|国外雇主|游戏|国外|出国|信用卡|临床|欢迎加入本群|欢迎加入群聊|点歌' \
+              r'倒酒|KTV全免费|KTV营销|欧洲空运|空派|海派|美国自营|美国海运|加拿大|欧洲快船|欧美专线|派送上门|菲律宾马尼拉|双清|欧美加|海外仓|海外项目|孟加拉|几内亚|缅甸|埃及|土耳其|津巴布韦|非洲|约旦|尼日尔|出国劳务|巴基斯坦|出境|俄罗斯|印尼|马来西亚|老挝|国际货运' \
+              r'充场|日租房|收黑户|贷款|收建筑垃圾|市政二|消防二|防水二|幕墙一级|价格合理|现货|独家货源|小程序|直通车|出中级职称|出高级职称|出中高级职称|各类中高级职称|互换|专业钻孔|订餐电话|利息|欢迎进群'
     p1 = re.compile(pattern)
     m1 = p1.findall(text)
     print("关键词匹配：", m1)
-    # print('text=',text)
     if len(m1) != 0:
         return False
     else:
@@ -59,22 +59,20 @@ def handle_info(text):
     types, contact, city, res = check(text, None, None, None)
     formated_res = format_return_result(res)
     city = formated_res["期望工作地点"]
-    print(f'types:{types}, contact:{contact}, city:{city}')
-
     cnt = 0
     if types == "[]" or len(types) == 0:
         cnt += 1
     if cnt >= 1:
-        old_target = False      # old_target: 用来判断信息中是否有工种（type）之类的词
+        old_target = False
     else:
         old_target = True
 
-    add_target = cc_target(contact, city)   # add_target:判断contact和city是否同时存在
+    add_target = cc_target(contact, city)
 
-    new_target = keyword_match(text)    # new_target:判断文本中有无自己预设的关键词
-    print(f'old_target:{old_target}, new_target:{new_target}, add_target:{add_target}')
-    # if old_target and new_target and add_target:
-    if new_target and add_target:
+    new_target = keyword_match(text)
+    print(old_target, new_target, add_target)
+    if old_target and new_target and add_target:
+    # if new_target and add_target:
         return True
     else:
         return False
@@ -146,14 +144,12 @@ def format_return_result(res):
     return formated_res
 
 
-def seg_punc(msg, wxid, raw, time, nickname):
+def seg_punc(msg, wxid, raw, time, nickname, ip, personal_name):
     pattern = r'\n|\t|:|：|,|，| |!|！|\n'
     if not isinstance(msg, str):
         return {}
     result = re.split(pattern, msg)
-    # print(result)
     res, types, number, city, place, contact = extract_info(msg, wxid, raw, time)
-    # print(f'res:{res}, types:{types}, number:{number}, city:{city}, place:{place}, contact:{contact}')
     for i in range(len(result)):
         for j in range(len(types)):
             p1 = re.compile(types[j])
@@ -206,10 +202,10 @@ def seg_punc(msg, wxid, raw, time, nickname):
     res['项目内容'] = qa_sentence
     res['个人昵称'] = nickname
     res['消息来源'] = wxid
-    # print(res)
+    print(res)
     formated_res = format_return_result(res)
     configuration = json.dumps(formated_res, ensure_ascii=False)
-    save_splice_info(configuration, wxid, raw, time)
+    save_splice_info(configuration, wxid, raw, time, ip, personal_name)
     return formated_res
 
 
@@ -221,7 +217,7 @@ def find_job(msg):
     res, person, city, types, contact = handle_search(msg)
     # types = "你好"
     # print(len(types))
-    # print(result)
+    print(result)
     for i in range(len(result)):
         # print("测试", i, "：", result[i])
         for j in range(len(person)):
@@ -282,10 +278,8 @@ def convert_md5(text):
     return res.hexdigest()
 
 
-def save_splice_info(res, wxid, raw, time):
+def save_splice_info(res, wxid, raw, time, ip, personal_name):
     raw_md5 = str(convert_md5(raw))
-    IP = socket.gethostbyname(socket.gethostname())
-    print(f'IP:{IP}')
     DbHandle.insertDB(
-        "insert into recruit (mes_from, mes_raw, mes_time, mes_json,mes_raw_md5, mes_host_ip) values ('%s', '%s', '%s', '%s','%s','%s')" % (
-            wxid, raw, time, res, raw_md5, IP))
+        "insert into recruit (mes_from, mes_raw, mes_time, mes_json,mes_raw_md5, ip, personal_name ) values ('%s', '%s', '%s', '%s','%s', '%s','%s')" % (
+            wxid, raw, time, res, raw_md5, ip, personal_name))
