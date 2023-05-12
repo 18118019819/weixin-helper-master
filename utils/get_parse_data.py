@@ -149,7 +149,9 @@ def seg_punc(msg, wxid, raw, time, nickname, ip, personal_name):
     if not isinstance(msg, str):
         return {}
     result = re.split(pattern, msg)
-    res, types, number, city, place, contact = extract_info(msg, wxid, raw, time)
+    res, types, number, city, place, contact, single_city, district = extract_info(msg, wxid, raw, time)
+    single_city_str = "".join(single_city)
+    district_str = "".join(district)
     for i in range(len(result)):
         for j in range(len(types)):
             p1 = re.compile(types[j])
@@ -205,7 +207,7 @@ def seg_punc(msg, wxid, raw, time, nickname, ip, personal_name):
     print(res)
     formated_res = format_return_result(res)
     configuration = json.dumps(formated_res, ensure_ascii=False)
-    save_splice_info(configuration, wxid, raw, time, ip, personal_name)
+    save_splice_info(configuration, wxid, raw, time, ip, personal_name, single_city_str, district_str)
     return formated_res
 
 
@@ -278,8 +280,8 @@ def convert_md5(text):
     return res.hexdigest()
 
 
-def save_splice_info(res, wxid, raw, time, ip, personal_name):
+def save_splice_info(res, wxid, raw, time, ip, personal_name, single_city_str, district_str):
     raw_md5 = str(convert_md5(raw))
     DbHandle.insertDB(
-        "insert into recruit (mes_from, mes_raw, mes_time, mes_json,mes_raw_md5, ip, personal_name ) values ('%s', '%s', '%s', '%s','%s', '%s','%s')" % (
-            wxid, raw, time, res, raw_md5, ip, personal_name))
+        "insert into recruit (mes_from, mes_raw, mes_time, mes_json,mes_raw_md5, ip, personal_name, single_city_str, district_str ) values ('%s', '%s', '%s', '%s','%s', '%s','%s', '%s','%s')" % (
+            wxid, raw, time, res, raw_md5, ip, personal_name, single_city_str, district_str))

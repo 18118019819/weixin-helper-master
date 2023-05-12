@@ -1,7 +1,8 @@
 # encoding:UTF-8
 import regex as re
 
-from extensions import lac, replace_dict
+from extensions import lac, replace_dict, lac_city_data
+from utils.constant import PATH_CITY_DATA
 
 
 def getTypes(msg):
@@ -50,12 +51,31 @@ def getTypesName(str_content):
             res.append(item[0])
     return res
 
+def getCityName(str_content):
+    text = str_content
+    lac_result = lac_city_data.run(text)
+    resdict = dict(zip(lac_result[0], lac_result[1]))
+    res = []
+    for item in resdict.items():
+        if str(item[1]) == 'city':
+            res.append(item[0])
+    return res
+
+def getDistrictName(str_content):
+    text = str_content
+    lac_result = lac_city_data.run(text)
+    resdict = dict(zip(lac_result[0], lac_result[1]))
+    res = []
+    for item in resdict.items():
+        if str(item[1]) == 'district':
+            res.append(item[0])
+    return res
+
 
 def getLOCName(str_content):
     text = str_content
     lac_result = lac.run(text)
     resdict = dict(zip(lac_result[0], lac_result[1]))
-    # print(resdict)
     res = []
     for item in resdict.items():
         if str(item[1]) == 'LOC':
@@ -104,6 +124,45 @@ def getAllMsg(content, data_original):
         city = list(set(city))
         city = ",".join(city)
 
+    dict_city = []
+    dict_district = []
+    with open(PATH_CITY_DATA, "r", encoding="utf-8") as file:
+        lines = file.read().splitlines()
+        for line in lines:
+            temp = line.split("/")
+            if temp[1] == "city":
+                dict_city.append(temp[0])
+            else:
+                dict_district.append(temp[0])
+
+    single_city = getCityName(content)
+    district = getDistrictName(content)
+    # 因为lac没有最细粒度划分，只要干预字典的字可以在分词中找到，就把相关分词也提取出来
+    if len(single_city) == 0:
+        lac_result = lac_city_data.run(content)
+        loc_dict = list(zip(lac_result[0], lac_result[1]))
+        for item in loc_dict:
+            if item[1] == "city":
+                for city in dict_city:
+                    pattern = r"%s"%city
+                    temp_city =re.findall(pattern, item[0])
+                    if len(temp_city) != 0:
+                        single_city.append(item[0])
+
+    if len(single_city) == 0:
+        lac_result = lac_city_data.run(content)
+        loc_dict = list(zip(lac_result[0], lac_result[1]))
+        for item in loc_dict:
+            if item[1] == "district":
+                for district in dict_district:
+                    pattern = r"%s"%district
+                    temp_district =re.findall(pattern, item[0])
+                    if len(temp_district) != 0:
+                        district.append(item[0])
+
+    print(f"single_city:{single_city},district:{district}")
+
+
     # 人数
     number = re.findall(r'\d+人|\d+名|数名|大量|若干|\d+个|\d+人|多名|若干个|几个|\d+—\d+人|\d+到\d+人|\d+位|多人|\d+到\d+名|\d+组人', content)
 
@@ -132,7 +191,7 @@ def getAllMsg(content, data_original):
         contact = getMNumber(data_original.replace('   ', ','))
     # print(contact)
     work_time = ''
-    return types, money, acquire, number, contact, city, work_time, place, persons
+    return types, money, acquire, number, contact, city, work_time, place, persons, single_city, district
 
 
 def get_res(content, wxid, raw, time, data_original):
@@ -140,14 +199,14 @@ def get_res(content, wxid, raw, time, data_original):
     :param content:
     :return:
     """
-    types, money, acquire, number, contact, city, work_time, place, persons = getAllMsg(content, data_original)
+    types, money, acquire, number, contact, city, work_time, place, persons, single_city, district = getAllMsg(content, data_original)
 
     return process_return(types, money, acquire, number, contact, city, work_time, place, persons, wxid, raw, time,
-                          data_original, content)  # 此句新添加
+                          data_original, content, single_city, district)  # 此句新添加
 
 
 def process_return(types, money, acquire, number, contact, city, work_time, place, persons, wxid, raw, time,
-                   data_original, content):
+                   data_original, content, single_city, district):
     if type(types) == list:
         for i in range(0, len(types)):
             if '一开一' in types[i] and type(number) == list:
@@ -256,7 +315,7 @@ def process_return(types, money, acquire, number, contact, city, work_time, plac
     print(city)
     res = {"期望工作地点": city, "招工单位": place, "招工信息": all_info, "联系人": "无",
            "联系电话": contact, "联系微信": "无", "项目内容": "无", "消息来源": "无", "个人昵称": "无"}
-    return res, types, number, city, place, contact
+    return res, types, number, city, place, contact, single_city, district
 
 
 def delBlank(obj):

@@ -16,6 +16,7 @@ class DataBaseHandle(object):
 
     def createDB(self, sql):
         try:
+            self.db.ping(reconnect=True)
             print("执行过这里")
             self.cursor.execute(sql)
         except Exception as e:
@@ -25,6 +26,7 @@ class DataBaseHandle(object):
 
     def insertDB(self, sql):
         try:
+            self.db.ping(reconnect=True)
             num = self.cursor.execute(sql)
             print("插入条数为：", num)
             self.db.commit()
@@ -38,6 +40,7 @@ class DataBaseHandle(object):
 
     def deleteDB(self, sql):
         try:
+            # self.db.ping(reconnect=True)
             num = self.cursor.execute(sql)
             print("删除条数为：", num)
             self.db.commit()
@@ -49,6 +52,7 @@ class DataBaseHandle(object):
 
     def updateDB(self, sql):
         try:
+            self.db.ping(reconnect=True)
             num = self.cursor.execute(sql)
             print("更新条数为：", num)
             self.db.commit()
@@ -60,6 +64,7 @@ class DataBaseHandle(object):
 
     def selectDB(self, sql):
         try:
+            self.db.ping(reconnect=True)
             num = self.cursor.execute(sql)
             # print("查询条数为：", num)
             data = self.cursor.fetchall()
