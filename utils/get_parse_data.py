@@ -205,9 +205,29 @@ def seg_punc(msg, wxid, raw, time, nickname, ip, personal_name):
     res['个人昵称'] = nickname
     res['消息来源'] = wxid
     print(res)
+
+    complete_address = ""
+    # single_address = ""
+    # 思路：只匹配一次city所在的完整地址
+    for city_x in city:
+        content = re.findall(r"%s.+" % city_x, msg)
+        if len(content) == 0:
+            continue
+        str_content = "".join(content)
+        r = "[A-Za-z0-9_.!+-=——,$%^，。？、~@#￥%……&*《》<>「」{}【】()/]"
+        sentence = re.sub(r, ' ', str_content)
+        m_s = re.split(" ", sentence)
+        m_s1 = re.split("（", m_s[0])
+        complete_address = m_s1[0]
+        # single_address = city_x
+        break
+
+    print(f"complete_address:{complete_address}")
+    # print(f"single_address:{single_address}")
+
     formated_res = format_return_result(res)
     configuration = json.dumps(formated_res, ensure_ascii=False)
-    save_splice_info(configuration, wxid, raw, time, ip, personal_name, single_city_str, district_str)
+    save_splice_info(configuration, wxid, raw, time, ip, personal_name, single_city_str, district_str, complete_address)
     return formated_res
 
 
@@ -280,8 +300,8 @@ def convert_md5(text):
     return res.hexdigest()
 
 
-def save_splice_info(res, wxid, raw, time, ip, personal_name, single_city_str, district_str):
+def save_splice_info(res, wxid, raw, time, ip, personal_name, single_city_str, district_str, complete_address):
     raw_md5 = str(convert_md5(raw))
     DbHandle.insertDB(
-        "insert into recruit (mes_from, mes_raw, mes_time, mes_json,mes_raw_md5, ip, personal_name, single_city_str, district_str ) values ('%s', '%s', '%s', '%s','%s', '%s','%s', '%s','%s')" % (
-            wxid, raw, time, res, raw_md5, ip, personal_name, single_city_str, district_str))
+        "insert into recruit (mes_from, mes_raw, mes_time, mes_json,mes_raw_md5, ip, personal_name, single_city_str, district_str, complete_address ) values ('%s', '%s', '%s', '%s','%s', '%s','%s', '%s','%s','%s')" % (
+            wxid, raw, time, res, raw_md5, ip, personal_name, single_city_str, district_str, complete_address))
