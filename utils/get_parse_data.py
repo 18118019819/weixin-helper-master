@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import json
 
@@ -5,7 +6,8 @@ from process_recruit_detail_info import extract_info
 from process_job_info import handle_search
 import re
 from Check_inval import check
-from extensions import DbHandle, all_provinces
+from extensions import DbHandle, all_provinces, DbHandle1, regex_config
+from utils.database_test import DataBaseHandle
 
 """
 {'期望工作地点': [], '招工单位': [], '招工信息': [{'工种': '', '期望工作地点': '', '招工单位': [], '招工人数': '', 
@@ -66,7 +68,7 @@ def handle_info(text):
         old_target = False
     else:
         old_target = True
-
+    print(contact)
     add_target = cc_target(contact, city)
 
     new_target = keyword_match(text)
@@ -204,7 +206,7 @@ def seg_punc(msg, wxid, raw, time, nickname, ip, personal_name):
     res['项目内容'] = qa_sentence
     res['个人昵称'] = nickname
     res['消息来源'] = wxid
-    print(res)
+    print(f"res:{res}")
 
     complete_address = ""
     # single_address = ""
@@ -222,7 +224,7 @@ def seg_punc(msg, wxid, raw, time, nickname, ip, personal_name):
         # single_address = city_x
         break
 
-    print(f"complete_address:{complete_address}")
+    # print(f"complete_address:{complete_address}")
     # print(f"single_address:{single_address}")
 
     formated_res = format_return_result(res)
@@ -302,6 +304,49 @@ def convert_md5(text):
 
 def save_splice_info(res, wxid, raw, time, ip, personal_name, single_city_str, district_str, complete_address):
     raw_md5 = str(convert_md5(raw))
-    DbHandle.insertDB(
-        "insert into recruit (mes_from, mes_raw, mes_time, mes_json,mes_raw_md5, ip, personal_name, single_city_str, district_str, complete_address ) values ('%s', '%s', '%s', '%s','%s', '%s','%s', '%s','%s','%s')" % (
-            wxid, raw, time, res, raw_md5, ip, personal_name, single_city_str, district_str, complete_address))
+    # 设置十五天有效期，超过十五天的允许重复插入
+    # state:防止原始数据影响后面的数据---------以前的数据永远符合，就会导致一直插入（通过循环，只要有一条不符合就判定为该数据最近15天出现过）
+    global state
+    state =False
+    DbHandle = DataBaseHandle(regex_config["host"], regex_config["user"], regex_config["password"], regex_config["db"])
+    DbHandle1 = DataBaseHandle(regex_config["host"], regex_config["user"], regex_config["password"], regex_config["db"])
+    target_data, num_select = DbHandle.selectDB(
+    "select * from recruit where mes_raw_md5='%s'"%raw_md5
+    )
+    print(f"查询该MD5已有的的数据为：{target_data}")
+    print(f"查询该MD5的数据条数为：{num_select}")
+    if num_select > 0:
+        for item in target_data:
+            ori_time = item[3]
+            time_sql = datetime.datetime.strptime(ori_time, "%Y-%m-%d %H:%M:%S")
+            now_time = datetime.datetime.now()
+            delta = datetime.timedelta(days=15)
+            if now_time - time_sql > delta:
+                state = True
+                # DbHandle1.insertDB(
+                #     "insert into recruit (mes_from, mes_raw, mes_time, mes_json,mes_raw_md5, ip, personal_name, single_city_str, district_str, complete_address ) values ('%s', '%s', '%s', '%s','%s', '%s','%s', '%s','%s','%s')" % (
+                #         wxid, raw, time, res, raw_md5, ip, personal_name, single_city_str, district_str,
+                #         complete_address))
+            else:
+                state = False
+                # print("插入数据已有且未过十五天有效期，插入失败")
+                continue
+        if state:
+            DbHandle1.insertDB(
+                "insert into recruit (mes_from, mes_raw, mes_time, mes_json,mes_raw_md5, ip, personal_name, single_city_str, district_str, complete_address ) values ('%s', '%s', '%s', '%s','%s', '%s','%s', '%s','%s','%s')" % (
+                    wxid, raw, time, res, raw_md5, ip, personal_name, single_city_str, district_str,
+                    complete_address))
+        else:
+            print("插入数据已有且未过十五天有效期，插入失败")
+
+    else:
+        DbHandle1.insertDB(
+            "insert into recruit (mes_from, mes_raw, mes_time, mes_json,mes_raw_md5, ip, personal_name, single_city_str, district_str, complete_address ) values ('%s', '%s', '%s', '%s','%s', '%s','%s', '%s','%s','%s')" % (
+                wxid, raw, time, res, raw_md5, ip, personal_name, single_city_str, district_str,
+                complete_address))
+
+
+
+    # DbHandle.insertDB(
+    #     "insert into recruit (mes_from, mes_raw, mes_time, mes_json,mes_raw_md5, ip, personal_name, single_city_str, district_str, complete_address ) values ('%s', '%s', '%s', '%s','%s', '%s','%s', '%s','%s','%s')" % (
+    #         wxid, raw, time, res, raw_md5, ip, personal_name, single_city_str, district_str, complete_address))
